@@ -1,0 +1,9 @@
+/.idea
+/.venv
+/runs
+/.vscode
+/dataset
+
+*.pyc
+*.log
+.env
