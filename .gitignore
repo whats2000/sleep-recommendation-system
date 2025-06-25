@@ -2,7 +2,8 @@
 /.venv
 /runs
 /.vscode
-/dataset
+/backend/dataset
+/backend/data
 
 *.pyc
 *.log
