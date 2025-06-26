@@ -30,8 +30,8 @@ class ABTestStartResource(Resource):
             if not data:
                 return {'error': 'No data provided'}, 400
             
-            # Validate required fields
-            required_fields = ['stressLevel', 'emotionalState', 'sleepGoal', 'sleepTheme']
+            # Validate required fields (using snake_case to match main API)
+            required_fields = ['stress_level', 'emotional_state', 'sleep_goal', 'sleep_theme']
             for field in required_fields:
                 if field not in data:
                     return {'error': f'Missing required field: {field}'}, 400

@@ -7,8 +7,8 @@ import tempfile
 from typing import Optional, Dict, Any
 
 import torch
-import torchaudio
-from transformers import MusicgenForConditionalGeneration, AutoProcessor
+import scipy.io.wavfile
+from transformers.pipelines import pipeline
 
 
 class MusicGenerationService:
@@ -22,33 +22,70 @@ class MusicGenerationService:
     def __init__(self, model_name: str = "facebook/musicgen-small"):
         """
         Initialize the MusicGen service.
-        
+
         Args:
             model_name: HuggingFace model name for MusicGen
         """
         self.model_name = model_name
-        self.model = None
-        self.processor = None
+        self.synthesiser = None
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self._load_model()
     
     def _load_model(self):
-        """Load the MusicGen model and processor."""
+        """Load the MusicGen pipeline."""
         try:
-            print(f"Loading MusicGen model: {self.model_name}")
-            self.processor = AutoProcessor.from_pretrained(self.model_name)
-            self.model = MusicgenForConditionalGeneration.from_pretrained(
+            print(f"Loading MusicGen pipeline: {self.model_name}")
+            self.synthesiser = pipeline(
+                "text-to-audio",
                 self.model_name,
-                attn_implementation="eager"
+                device=0 if self.device == "cuda" else -1  # 0 for GPU, -1 for CPU
             )
-            self.model.to(self.device)
-            print(f"MusicGen model loaded successfully on {self.device}")
+            print(f"MusicGen pipeline loaded successfully on {self.device}")
         except Exception as e:
-            print(f"Error loading MusicGen model: {e}")
-            print("CRITICAL: MusicGen model failed to load. System will not return fake data.")
-            self.model = None
-            self.processor = None
-    
+            print(f"Error loading MusicGen pipeline: {e}")
+            print("CRITICAL: MusicGen pipeline failed to load. System will not return fake data.")
+            self.synthesiser = None
+
+    def _sanitize_prompt(self, prompt: str) -> str:
+        """
+        Sanitize the prompt to ensure it works well with MusicGen.
+
+        Args:
+            prompt: Raw prompt from LLM
+
+        Returns:
+            Cleaned prompt safe for MusicGen
+        """
+        import re
+
+        # Remove any quotes or special formatting
+        sanitized = prompt.strip().strip('"').strip("'")
+
+        # Remove any line breaks and extra whitespace
+        sanitized = re.sub(r'\s+', ' ', sanitized)
+
+        # Remove any special characters that might cause issues
+        sanitized = re.sub(r'[^\w\s,.-]', '', sanitized)
+
+        # Ensure it's not too long (MusicGen works best with shorter prompts)
+        if len(sanitized) > 100:
+            # Truncate at word boundary
+            words = sanitized.split()
+            truncated_words = []
+            char_count = 0
+            for word in words:
+                if char_count + len(word) + 1 > 100:  # +1 for space
+                    break
+                truncated_words.append(word)
+                char_count += len(word) + 1
+            sanitized = ' '.join(truncated_words)
+
+        # If the prompt is empty or too short, use a fallback
+        if len(sanitized.strip()) < 10:
+            sanitized = "ambient music, slow tempo, peaceful, relaxing"
+
+        return sanitized
+
     def generate_audio(
         self,
         prompt: str,
@@ -69,83 +106,48 @@ class MusicGenerationService:
             Path to the generated audio file, or None if generation failed
         """
         try:
-            if not self.model or not self.processor:
-                print(f"Model check: model={self.model is not None}, processor={self.processor is not None}")
-                print("Attempting to reload model...")
+            if not self.synthesiser:
+                print("Pipeline not loaded, attempting to reload...")
                 self._load_model()
 
-                if not self.model or not self.processor:
-                    raise RuntimeError("MusicGen model not available - cannot generate real audio. Refusing to return fake data to users.")
+                if not self.synthesiser:
+                    raise RuntimeError("MusicGen pipeline not available - cannot generate real audio. Refusing to return fake data to users.")
 
-            print("Generating audio with transformers...")
+            print("Generating audio with transformers pipeline...")
 
-            # 1. encode prompt with the tokenizer
-            inputs = self.processor(
-                text=[prompt],
-                padding=True,
-                return_tensors="pt",
-            ).to(self.device)
-
-            # 2. cap max_length to prevent errors - much more conservative
-            sample_rate = 32_000
-            max_model_tokens = 512  # Very conservative safety cap to prevent errors
+            # Limit duration to prevent memory issues
             max_duration = 15  # Limit to 15 seconds maximum
-
-            # Use the smaller of requested duration or max duration
             actual_duration = min(duration, max_duration)
-            tokens_to_generate = min(
-                int(actual_duration * sample_rate / 320),
-                max_model_tokens,
-            )
 
-            print(f"Audio generation: duration={actual_duration}s, tokens={tokens_to_generate}")
+            print(f"Audio generation: duration={actual_duration}s")
+            print(f"Original prompt: '{prompt}'")
 
-            # 3. generate with conservative parameters
-            print(f"Generating audio with prompt: '{prompt}', tokens: {tokens_to_generate}")
-            with torch.no_grad():
-                audio_values = self.model.generate(
-                    **inputs,
-                    max_new_tokens=tokens_to_generate,
-                    guidance_scale=guidance_scale,
-                    do_sample=True,
-                    temperature=0.8,  # Slightly lower temperature for more stable generation
-                )
+            # Sanitize the prompt to ensure it works with MusicGen
+            sanitized_prompt = self._sanitize_prompt(prompt)
+            print(f"Sanitized prompt: '{sanitized_prompt}'")
+
+            # Generate audio using the pipeline
+            print("Calling pipeline...")
+            music = self.synthesiser(sanitized_prompt)
 
             # Check if generation was successful
-            if audio_values is None or len(audio_values) == 0:
-                raise RuntimeError("Audio generation failed - model returned None or empty result")
+            if music is None or "audio" not in music:
+                raise RuntimeError("Audio generation failed - pipeline returned None or invalid result")
 
-            # 4. grab the waveform
-            waveform = audio_values[0].cpu()
+            audio_data = music["audio"]
+            sampling_rate = music["sampling_rate"]
 
-            # Validate audio tensor
-            if waveform is None:
-                raise RuntimeError("Audio generation failed - audio tensor is None")
+            print(f"Audio generated successfully, shape: {audio_data.shape}, sample rate: {sampling_rate}")
             
             # Save to file
             if output_dir is None:
                 output_dir = tempfile.gettempdir()
-            
+
             os.makedirs(output_dir, exist_ok=True)
             output_path = os.path.join(output_dir, f"generated_audio_{hash(prompt) % 10000}.wav")
 
-            # Ensure shape = (channels, samples)
-            if waveform.dim() == 1:  # (samples) ➜ (1, samples)
-                audio_to_save = waveform.unsqueeze(0)
-            elif waveform.dim() == 2:  # already (channels, samples)
-                audio_to_save = waveform
-            elif waveform.dim() == 3:  # (1, channels, samples)
-                audio_to_save = waveform.squeeze(0)
-            else:
-                raise RuntimeError(
-                    f"Unexpected waveform dimension: {waveform.shape}"
-                )
-
-            torchaudio.save(
-                output_path,
-                audio_to_save,
-                int(sample_rate)
-            )
+            # Save using scipy (handles the format conversion automatically)
+            scipy.io.wavfile.write(output_path, rate=sampling_rate, data=audio_data)
             
             print(f"Generated audio saved to: {output_path}")
             return output_path
@@ -155,27 +157,23 @@ class MusicGenerationService:
             raise
     
     def get_model_info(self) -> Dict[str, Any]:
-        """Get information about the loaded model."""
+        """Get information about the loaded pipeline."""
         return {
             "model_name": self.model_name,
             "device": self.device,
-            "model_loaded": self.model is not None,
-            "processor_loaded": self.processor is not None,
+            "pipeline_loaded": self.synthesiser is not None,
             "cuda_available": torch.cuda.is_available()
         }
     
     def cleanup(self):
-        """Clean up model resources."""
-        if self.model:
-            del self.model
-            self.model = None
-        if self.processor:
-            del self.processor
-            self.processor = None
-        
+        """Clean up pipeline resources."""
+        if self.synthesiser:
+            del self.synthesiser
+            self.synthesiser = None
+
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-        
+
         print("MusicGen service cleaned up")
 
 if __name__ == "__main__":
