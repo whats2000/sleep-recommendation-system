@@ -41,14 +41,15 @@ export const ABTestPage: React.FC = () => {
 
   const handleTestComplete = async (result: ABTestResult) => {
     setSubmitting(true);
-    
+
     try {
-      // Submit test results to backend
+      // Submit test results to backend with complete session data
       await apiService.submitABTestResults({
         session_id: session.session_id,
         results: result,
+        session_data: session, // Include the complete session data
       });
-      
+
       message.success('測試結果已提交，感謝您的參與！');
       setCompleted(true);
     } catch (error) {

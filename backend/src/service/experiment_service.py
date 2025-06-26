@@ -53,12 +53,13 @@ class ExperimentService:
         except Exception as e:
             logger.error(f"Error saving data to {file_path}: {str(e)}")
     
-    def create_ab_test_session(self, session_id: str, user_data: Dict, recommendations: List[Dict]) -> Dict:
+    def create_ab_test_session(self, session_id: str, user_data: Dict, recommendations: List[Dict], test_pairs: Optional[List[Dict]] = None) -> Dict:
         """Create a new A/B test session with music pairs"""
         try:
-            # Create test pairs from recommendations
-            test_pairs = self._create_test_pairs(recommendations)
-            
+            # Use provided test pairs or create from recommendations
+            if test_pairs is None:
+                test_pairs = self._create_test_pairs(recommendations)
+
             # Create session data
             session_data = {
                 'session_id': session_id,
@@ -70,12 +71,12 @@ class ExperimentService:
                 'start_time': datetime.now().isoformat(),
                 'status': 'active'
             }
-            
+
             # Save session
             sessions = self._load_data(self.sessions_file)
             sessions[session_id] = session_data
             self._save_data(self.sessions_file, sessions)
-            
+
             logger.info(f"Created A/B test session {session_id} with {len(test_pairs)} pairs")
             return session_data
             
@@ -119,37 +120,137 @@ class ExperimentService:
         
         return test_pairs
     
-    def store_experiment_results(self, session_id: str, results: Dict) -> bool:
-        """Store experiment results"""
+    def store_experiment_results(self, session_id: str, results: Dict, session_data: Optional[Dict] = None) -> bool:
+        """Store experiment results with optional session data"""
         try:
             # Load existing results
             all_results = self._load_data(self.results_file)
-            
+
             # Add timestamp and session info
             results['session_id'] = session_id
             results['submission_time'] = datetime.now().isoformat()
-            
+
+            # If session data is provided, store it as well
+            if session_data:
+                # Store the complete session data in sessions file
+                sessions = self._load_data(self.sessions_file)
+                sessions[session_id] = session_data
+                self._save_data(self.sessions_file, sessions)
+
+                # Add session metadata to results for easier analysis
+                results['session_metadata'] = {
+                    'test_pairs': session_data.get('test_pairs', []),
+                    'form_data': session_data.get('form_data', {}),
+                    'recommendation_metadata': session_data.get('recommendation_metadata', {})
+                }
+            else:
+                # Update session status if session exists
+                sessions = self._load_data(self.sessions_file)
+                if session_id in sessions:
+                    sessions[session_id]['status'] = 'completed'
+                    sessions[session_id]['end_time'] = datetime.now().isoformat()
+                    self._save_data(self.sessions_file, sessions)
+
             # Store results
             all_results[session_id] = results
             self._save_data(self.results_file, all_results)
-            
-            # Update session status
-            sessions = self._load_data(self.sessions_file)
-            if session_id in sessions:
-                sessions[session_id]['status'] = 'completed'
-                sessions[session_id]['end_time'] = datetime.now().isoformat()
-                self._save_data(self.sessions_file, sessions)
-            
+
             # Update analytics
             self._update_analytics(session_id, results)
-            
+
             logger.info(f"Stored experiment results for session {session_id}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error storing experiment results: {str(e)}")
             return False
-    
+
+    def analyze_recommendation_effectiveness(self, session_id: Optional[str] = None) -> Dict:
+        """Analyze whether users prefer recommended tracks over random tracks"""
+        try:
+            results = self._load_data(self.results_file)
+
+            if session_id:
+                # Analyze specific session
+                if session_id not in results:
+                    return {'error': 'Session not found'}
+                session_results = {session_id: results[session_id]}
+            else:
+                # Analyze all sessions
+                session_results = results
+
+            total_choices = 0
+            recommended_chosen = 0
+            random_chosen = 0
+            session_analyses = []
+
+            for sid, session_data in session_results.items():
+                if 'session_metadata' not in session_data:
+                    continue
+
+                test_pairs = session_data['session_metadata'].get('test_pairs', [])
+                choices = session_data.get('choices', [])
+
+                session_recommended = 0
+                session_random = 0
+                session_total = 0
+
+                for choice in choices:
+                    pair_id = choice['pair_id']
+                    chosen_track = choice['chosen_track']  # 'A' or 'B'
+
+                    # Find the corresponding test pair
+                    test_pair = None
+                    for pair in test_pairs:
+                        if pair['id'] == pair_id:
+                            test_pair = pair
+                            break
+
+                    if test_pair and 'recommended_track_position' in test_pair:
+                        recommended_position = test_pair['recommended_track_position']  # 'A' or 'B'
+
+                        if chosen_track == recommended_position:
+                            recommended_chosen += 1
+                            session_recommended += 1
+                        else:
+                            random_chosen += 1
+                            session_random += 1
+
+                        total_choices += 1
+                        session_total += 1
+
+                if session_total > 0:
+                    session_analyses.append({
+                        'session_id': sid,
+                        'total_choices': session_total,
+                        'recommended_chosen': session_recommended,
+                        'random_chosen': session_random,
+                        'recommendation_preference_rate': session_recommended / session_total
+                    })
+
+            if total_choices == 0:
+                return {
+                    'error': 'No valid choices found with track type information',
+                    'total_sessions_analyzed': len(session_analyses)
+                }
+
+            recommendation_preference_rate = recommended_chosen / total_choices
+
+            return {
+                'total_choices': total_choices,
+                'recommended_chosen': recommended_chosen,
+                'random_chosen': random_chosen,
+                'recommendation_preference_rate': recommendation_preference_rate,
+                'hypothesis_supported': recommendation_preference_rate > 0.5,
+                'confidence_level': abs(recommendation_preference_rate - 0.5) * 2,
+                'sessions_analyzed': len(session_analyses),
+                'session_details': session_analyses if session_id else session_analyses[:5]  # Limit details for overall analysis
+            }
+
+        except Exception as e:
+            logger.error(f"Error analyzing recommendation effectiveness: {str(e)}")
+            return {'error': f'Analysis failed: {str(e)}'}
+
     def _update_analytics(self, session_id: str, results: Dict):
         """Update analytics with new experiment results"""
         try:

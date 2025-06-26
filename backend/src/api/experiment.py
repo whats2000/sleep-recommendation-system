@@ -64,7 +64,8 @@ def create_experiment_blueprint():
 
     ab_test_submit_model = api.model('ABTestSubmit', {
         'session_id': fields.String(required=True, description='Session identifier'),
-        'results': fields.Raw(required=True, description='Test results data')
+        'results': fields.Raw(required=True, description='Test results data'),
+        'session_data': fields.Raw(required=False, description='Complete session data including test pairs')
     })
 
     ab_test_submit_response_model = api.model('ABTestSubmitResponse', {
@@ -86,6 +87,18 @@ def create_experiment_blueprint():
         'session_id': fields.String(description='Session identifier'),
         'status': fields.String(description='Current session status'),
         'progress': fields.Raw(description='Session progress information'),
+        'error': fields.String(description='Error message if unsuccessful')
+    })
+
+    recommendation_effectiveness_model = api.model('RecommendationEffectiveness', {
+        'total_choices': fields.Integer(description='Total number of choices made'),
+        'recommended_chosen': fields.Integer(description='Number of times recommended tracks were chosen'),
+        'random_chosen': fields.Integer(description='Number of times random tracks were chosen'),
+        'recommendation_preference_rate': fields.Float(description='Rate of preference for recommended tracks (0-1)'),
+        'hypothesis_supported': fields.Boolean(description='Whether the recommendation hypothesis is supported'),
+        'confidence_level': fields.Float(description='Confidence level of the result (0-1)'),
+        'sessions_analyzed': fields.Integer(description='Number of sessions analyzed'),
+        'session_details': fields.List(fields.Raw, description='Detailed analysis per session'),
         'error': fields.String(description='Error message if unsuccessful')
     })
 
@@ -247,16 +260,18 @@ def create_experiment_blueprint():
 
                 session_id = data['session_id']
                 results = data['results']
+                session_data = data.get('session_data')  # Optional session data
 
                 # Validate results structure
                 if not isinstance(results, dict) or 'choices' not in results:
                     return {'error': 'Invalid results format'}, 400
 
-                # Store experiment results
+                # Store experiment results with optional session data
                 experiment_service = ExperimentService()
                 success = experiment_service.store_experiment_results(
                     session_id=session_id,
-                    results=results
+                    results=results,
+                    session_data=session_data
                 )
 
                 if success:
@@ -328,6 +343,32 @@ def create_experiment_blueprint():
             except Exception as e:
                 logger.error(f"Error getting experiment status: {str(e)}")
                 return {'error': 'Failed to get session status'}, 500
+
+    # Recommendation Effectiveness Analysis Resource
+    @experiment_ns.route('/effectiveness')
+    @experiment_ns.route('/effectiveness/<string:session_id>')
+    class RecommendationEffectivenessResource(Resource):
+        @experiment_ns.marshal_with(recommendation_effectiveness_model)
+        @experiment_ns.doc('analyze_recommendation_effectiveness')
+        @experiment_ns.param('session_id', 'Optional session ID for specific session analysis')
+        def get(self, session_id=None):
+            """Analyze recommendation system effectiveness.
+
+            Returns analysis of whether users prefer recommended tracks over random tracks.
+            This is the key metric for validating the recommendation system's performance.
+            """
+            try:
+                experiment_service = ExperimentService()
+                analysis = experiment_service.analyze_recommendation_effectiveness(session_id)
+
+                if 'error' in analysis:
+                    return analysis, 404 if 'not found' in analysis['error'].lower() else 400
+
+                return analysis, 200
+
+            except Exception as e:
+                logger.error(f"Error analyzing recommendation effectiveness: {str(e)}")
+                return {'error': 'Failed to analyze recommendation effectiveness'}, 500
 
     # Health check endpoint
     @experiment_bp.route('/health', methods=['GET'])

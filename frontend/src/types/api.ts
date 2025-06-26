@@ -154,6 +154,7 @@ export interface RecommendationRequest extends FormData {
 export interface ABTestSubmissionRequest {
   session_id: string;
   results: ABTestResult;
+  session_data?: ABTestSession;
 }
 
 // Audio playback types
