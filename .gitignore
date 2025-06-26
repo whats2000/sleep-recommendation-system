@@ -4,6 +4,7 @@
 /.vscode
 /backend/dataset
 /backend/data
+/backend/generated_audio
 
 *.pyc
 *.log

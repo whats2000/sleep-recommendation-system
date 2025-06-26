@@ -65,12 +65,15 @@ class TestAPI:
     def test_recommendations_endpoint_success(self, client, sample_form_data):
         """Test the recommendations endpoint with valid data."""
         response = client.post(
-            '/api/recommendations',
+            '/api/recommendations/',
             data=json.dumps(sample_form_data),
             content_type='application/json'
         )
         
         # Should return 200 or 500 (depending on service availability)
+        print(f"Response status code: {response.status_code}")
+        if response.status_code not in [200, 500]:
+            print(f"Response data: {response.data}")
         assert response.status_code in [200, 500]
         data = json.loads(response.data)
         assert 'success' in data
@@ -89,7 +92,7 @@ class TestAPI:
         }
         
         response = client.post(
-            '/api/recommendations',
+            '/api/recommendations/',
             data=json.dumps(incomplete_data),
             content_type='application/json'
         )
@@ -102,7 +105,7 @@ class TestAPI:
     
     def test_recommendations_endpoint_no_data(self, client):
         """Test the recommendations endpoint with no data."""
-        response = client.post('/api/recommendations')
+        response = client.post('/api/recommendations/')
         
         assert response.status_code == 400
         data = json.loads(response.data)
@@ -112,7 +115,7 @@ class TestAPI:
     def test_recommendations_endpoint_invalid_json(self, client):
         """Test the recommendations endpoint with invalid JSON."""
         response = client.post(
-            '/api/recommendations',
+            '/api/recommendations/',
             data='invalid json',
             content_type='application/json'
         )
@@ -170,7 +173,7 @@ if __name__ == "__main__":
         }
         
         response = client.post(
-            '/api/recommendations',
+            '/api/recommendations/',
             data=json.dumps(sample_data),
             content_type='application/json'
         )

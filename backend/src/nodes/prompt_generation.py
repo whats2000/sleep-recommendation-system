@@ -102,10 +102,20 @@ def prompt_generation_agent(state: RecommendationState) -> Dict[str, Any]:
                     for param in param_text.split(','):
                         if '=' in param:
                             key, value = param.split('=', 1)
+                            key = key.strip()
+                            value = value.strip()
+
+                            # Handle numeric values with units (e.g., "30 seconds", "32000 Hz")
                             try:
-                                generation_parameters[key.strip()] = float(value.strip())
+                                # Extract just the number part
+                                import re
+                                numeric_match = re.search(r'(\d+(?:\.\d+)?)', value)
+                                if numeric_match:
+                                    generation_parameters[key] = float(numeric_match.group(1))
+                                else:
+                                    generation_parameters[key] = value
                             except:
-                                generation_parameters[key.strip()] = value.strip()
+                                generation_parameters[key] = value
                 except:
                     pass
         
@@ -124,11 +134,24 @@ def prompt_generation_agent(state: RecommendationState) -> Dict[str, Any]:
                 "instruments": ','.join(instruments)
             }
         
+        # Safely convert duration to integer
+        try:
+            duration_value = generation_parameters.get("duration", 30)
+            if isinstance(duration_value, str):
+                # Extract number from string like "30 seconds"
+                import re
+                numeric_match = re.search(r'(\d+)', str(duration_value))
+                expected_duration = int(numeric_match.group(1)) if numeric_match else 30
+            else:
+                expected_duration = int(float(duration_value))
+        except:
+            expected_duration = 30
+
         generated_prompt = GeneratedPrompt(
             musicgen_prompt=musicgen_prompt,
             prompt_components=prompt_components,
             generation_parameters=generation_parameters,
-            expected_duration=int(generation_parameters.get("duration", 30))
+            expected_duration=expected_duration
         )
         
         processing_time = state.get("processing_time", {})

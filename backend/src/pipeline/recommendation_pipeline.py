@@ -53,18 +53,9 @@ class RecommendationPipeline:
         # Set entry point to state analysis
         graph_builder.add_edge(START, "analyze_state")
 
-        # Add conditional edges for parallel processing of the first three agents
-        graph_builder.add_conditional_edges(
-            "analyze_state",
-            self._route_after_state_analysis,
-            {
-                "recognize_emotion": "recognize_emotion",
-                "analyze_preferences": "analyze_preferences"
-            }
-        )
-
-        # Both emotion and preference analysis lead to integration
-        graph_builder.add_edge("recognize_emotion", "integrate_requirements")
+        # Sequential processing: state -> emotion -> preference -> integration
+        graph_builder.add_edge("analyze_state", "recognize_emotion")
+        graph_builder.add_edge("recognize_emotion", "analyze_preferences")
         graph_builder.add_edge("analyze_preferences", "integrate_requirements")
 
         # Integration leads to prompt generation
@@ -79,19 +70,7 @@ class RecommendationPipeline:
         else:
             return graph_builder.compile()
 
-    @staticmethod
-    def _route_after_state_analysis(state: RecommendationState) -> str:
-        """
-        Route to the next agents after state analysis.
-        For simplicity, we'll process emotion and preference analysis in sequence.
-        """
-        # Check if state analysis completed successfully
-        if state.get("processing_status") == "state_analysis_complete":
-            return "recognize_emotion"
-        else:
-            # If state analysis failed, we could handle error routing here
-            return "recognize_emotion"  # Continue anyway for robustness
-    
+
     def process_form_data(self, form_data_dict: Dict[str, Any]) -> Dict[str, Any]:
         """
         Process user form data through the recommendation pipeline.

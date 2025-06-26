@@ -41,7 +41,7 @@ class MusicGenerationService:
             print(f"MusicGen model loaded successfully on {self.device}")
         except Exception as e:
             print(f"Error loading MusicGen model: {e}")
-            print("MusicGen service will operate in mock mode")
+            print("CRITICAL: MusicGen model failed to load. System will not return fake data.")
             self.model = None
             self.processor = None
     
@@ -66,32 +66,41 @@ class MusicGenerationService:
         """
         try:
             if not self.model or not self.processor:
-                return self._generate_mock_audio(prompt, duration, output_dir)
-            
+                raise RuntimeError("MusicGen model not available - cannot generate real audio. Refusing to return fake data to users.")
+
+            print("Generating audio with transformers...")
+
             # Prepare inputs
             inputs = self.processor(
                 text=[prompt],
                 padding=True,
                 return_tensors="pt"
             ).to(self.device)
-            
-            # Calculate max_new_tokens based on duration
-            # MusicGen typically generates at 32kHz, so we need duration * 32000 tokens
-            sample_rate = self.model.config.audio_encoder.sampling_rate
-            max_new_tokens = int(duration * sample_rate / self.model.config.audio_encoder.hop_length)
-            
+
+            # Use a simpler approach for token calculation
+            # Generate for the specified duration (in seconds)
+            sample_rate = 32000  # Standard MusicGen sample rate
+
             # Generate audio
             with torch.no_grad():
                 audio_values = self.model.generate(
                     **inputs,
-                    max_new_tokens=max_new_tokens,
+                    max_length=int(duration * sample_rate / 320),  # Approximate token calculation
                     guidance_scale=guidance_scale,
                     do_sample=True,
                     temperature=1.0
                 )
-            
+
+            # Check if generation was successful
+            if audio_values is None or len(audio_values) == 0:
+                raise RuntimeError("Audio generation failed - model returned None or empty result")
+
             # Convert to audio format
             audio = audio_values[0].cpu()
+
+            # Validate audio tensor
+            if audio is None:
+                raise RuntimeError("Audio generation failed - audio tensor is None")
             
             # Save to file
             if output_dir is None:
@@ -101,10 +110,16 @@ class MusicGenerationService:
             output_path = os.path.join(output_dir, f"generated_audio_{hash(prompt) % 10000}.wav")
             
             # Save the audio file
+            # Ensure audio has the right shape (channels, samples)
+            if audio.dim() == 1:
+                audio = audio.unsqueeze(0)  # Add channel dimension
+            elif audio.dim() == 3:
+                audio = audio.squeeze(0)    # Remove batch dimension
+
             torchaudio.save(
                 output_path,
-                audio.unsqueeze(0),
-                sample_rate
+                audio,
+                int(sample_rate)
             )
             
             print(f"Generated audio saved to: {output_path}")
@@ -112,61 +127,7 @@ class MusicGenerationService:
             
         except Exception as e:
             print(f"Error generating audio: {e}")
-            return self._generate_mock_audio(prompt, duration, output_dir)
-
-    @staticmethod
-    def _generate_mock_audio(
-        prompt: str, 
-        duration: int = 30,
-        output_dir: Optional[str] = None
-    ) -> Optional[str]:
-        """
-        Generate mock audio for development/testing when MusicGen is not available.
-        
-        Creates a simple sine wave audio file.
-        """
-        try:
-            import numpy as np
-            
-            if output_dir is None:
-                output_dir = tempfile.gettempdir()
-            
-            os.makedirs(output_dir, exist_ok=True)
-            output_path = os.path.join(output_dir, f"mock_audio_{hash(prompt) % 10000}.wav")
-            
-            # Generate simple sine wave based on prompt characteristics
-            sample_rate = 32000
-            t = np.linspace(0, duration, int(sample_rate * duration))
-            
-            # Create a simple harmonic based on prompt content
-            base_freq = 220  # A3
-            if "calm" in prompt.lower() or "peaceful" in prompt.lower():
-                base_freq = 174  # Lower frequency for calm
-            elif "energetic" in prompt.lower() or "upbeat" in prompt.lower():
-                base_freq = 440  # Higher frequency for energy
-            
-            # Generate simple harmonic content
-            audio = (
-                0.3 * np.sin(2 * np.pi * base_freq * t) +
-                0.2 * np.sin(2 * np.pi * base_freq * 1.5 * t) +
-                0.1 * np.sin(2 * np.pi * base_freq * 2 * t)
-            )
-            
-            # Apply fade in/out
-            fade_samples = int(0.1 * sample_rate)  # 0.1 second fade
-            audio[:fade_samples] *= np.linspace(0, 1, fade_samples)
-            audio[-fade_samples:] *= np.linspace(1, 0, fade_samples)
-            
-            # Convert to tensor and save
-            audio_tensor = torch.from_numpy(audio).float().unsqueeze(0)
-            torchaudio.save(output_path, audio_tensor, sample_rate)
-            
-            print(f"Mock audio generated and saved to: {output_path}")
-            return output_path
-            
-        except Exception as e:
-            print(f"Error generating mock audio: {e}")
-            return None
+            raise
     
     def get_model_info(self) -> Dict[str, Any]:
         """Get information about the loaded model."""
