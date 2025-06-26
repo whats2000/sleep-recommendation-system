@@ -15,54 +15,127 @@ export class AudioService {
   private duration: number = 0;
   private volume: number = 1.0;
   private onStateChange?: (state: AudioPlaybackState) => void;
+  private userInteractionRequired: boolean = true;
 
   constructor(onStateChange?: (state: AudioPlaybackState) => void) {
     this.onStateChange = onStateChange;
   }
 
+  // Check if audio is ready to play
+  isAudioReady(): boolean {
+    return !!(this.audioContext && this.audioBuffer);
+  }
+
+  // Enable audio after user interaction
+  async enableAudio(): Promise<void> {
+    if (this.userInteractionRequired) {
+      await this.initAudioContext();
+      this.userInteractionRequired = false;
+    }
+  }
+
   // Initialize audio context
   private async initAudioContext(): Promise<void> {
     if (!this.audioContext) {
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      
-      // Create gain node for volume control
-      this.gainNode = this.audioContext.createGain();
-      this.gainNode.connect(this.audioContext.destination);
-      this.gainNode.gain.value = this.volume;
+      try {
+        // Check if AudioContext is supported
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AudioContextClass) {
+          throw new Error('Web Audio API is not supported in this browser');
+        }
+
+        this.audioContext = new AudioContextClass();
+
+        // Verify the context was created successfully
+        if (!this.audioContext) {
+          throw new Error('Failed to create AudioContext');
+        }
+
+        // Create gain node for volume control
+        this.gainNode = this.audioContext.createGain();
+        this.gainNode.connect(this.audioContext.destination);
+        this.gainNode.gain.value = this.volume;
+
+        console.log('AudioContext initialized successfully:', {
+          state: this.audioContext.state,
+          sampleRate: this.audioContext.sampleRate
+        });
+      } catch (error) {
+        console.error('Failed to initialize AudioContext:', error);
+        this.audioContext = null;
+        this.gainNode = null;
+        throw error;
+      }
     }
 
     // Resume context if suspended (required by some browsers)
-    if (this.audioContext.state === 'suspended') {
-      await this.audioContext.resume();
+    if (this.audioContext && this.audioContext.state === 'suspended') {
+      try {
+        await this.audioContext.resume();
+        console.log('AudioContext resumed, state:', this.audioContext.state);
+      } catch (error) {
+        console.error('Failed to resume AudioContext:', error);
+        throw error;
+      }
     }
   }
 
   // Load audio from URL
   async loadAudio(url: string): Promise<void> {
     try {
+      console.log('Loading audio from URL:', url);
+
+      // Initialize audio context first
       await this.initAudioContext();
-      
+
+      // Verify audio context is available
+      if (!this.audioContext) {
+        throw new Error('AudioContext is not available');
+      }
+
       this.updateState({ isLoading: true });
 
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error(`Failed to fetch audio: ${response.statusText}`);
+        throw new Error(`Failed to fetch audio: ${response.status} ${response.statusText}`);
       }
 
+      const contentType = response.headers.get('content-type');
+      console.log('Audio response content-type:', contentType);
+
       const arrayBuffer = await response.arrayBuffer();
-      this.audioBuffer = await this.audioContext!.decodeAudioData(arrayBuffer);
+      console.log('Audio buffer size:', arrayBuffer.byteLength, 'bytes');
+
+      if (arrayBuffer.byteLength === 0) {
+        throw new Error('Received empty audio file');
+      }
+
+      // Verify audio context is still available before decoding
+      if (!this.audioContext) {
+        throw new Error('AudioContext became unavailable during loading');
+      }
+
+      console.log('Decoding audio data...');
+      this.audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
       this.duration = this.audioBuffer.duration;
 
-      this.updateState({ 
+      console.log('Audio loaded successfully:', {
+        duration: this.duration,
+        sampleRate: this.audioBuffer.sampleRate,
+        numberOfChannels: this.audioBuffer.numberOfChannels
+      });
+
+      this.updateState({
         isLoading: false,
         duration: this.duration,
         error: undefined
       });
     } catch (error) {
       console.error('Error loading audio:', error);
-      this.updateState({ 
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load audio';
+      this.updateState({
         isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to load audio'
+        error: errorMessage
       });
       throw error;
     }
@@ -70,12 +143,13 @@ export class AudioService {
 
   // Play audio
   async play(): Promise<void> {
-    if (!this.audioBuffer || !this.audioContext || !this.gainNode) {
-      throw new Error('Audio not loaded');
-    }
-
     try {
-      await this.initAudioContext();
+      // Ensure audio context is initialized (handles user interaction requirement)
+      await this.enableAudio();
+
+      if (!this.audioBuffer || !this.audioContext || !this.gainNode) {
+        throw new Error('Audio not loaded or AudioContext not available');
+      }
 
       // Stop current playback if any
       this.stop();

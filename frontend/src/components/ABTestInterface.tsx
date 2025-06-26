@@ -167,11 +167,24 @@ export const ABTestInterface: React.FC<ABTestInterfaceProps> = ({
   // Handle audio play
   const handlePlay = async (track: 'A' | 'B') => {
     try {
+      // Enable audio context on first user interaction
+      if (audioServiceA.current && audioServiceB.current) {
+        await audioServiceA.current.enableAudio();
+        await audioServiceB.current.enableAudio();
+      }
+
       if (track === 'A') {
         // Stop B if playing
         if (audioStateB.isPlaying) {
           audioControlsB.current?.pause();
         }
+
+        // Check if audio is ready
+        if (!audioServiceA.current?.isAudioReady()) {
+          message.error('音頻尚未載入完成，請稍候再試');
+          return;
+        }
+
         await audioControlsA.current?.play();
         setPlayCountA(prev => prev + 1);
       } else {
@@ -179,12 +192,28 @@ export const ABTestInterface: React.FC<ABTestInterfaceProps> = ({
         if (audioStateA.isPlaying) {
           audioControlsA.current?.pause();
         }
+
+        // Check if audio is ready
+        if (!audioServiceB.current?.isAudioReady()) {
+          message.error('音頻尚未載入完成，請稍候再試');
+          return;
+        }
+
         await audioControlsB.current?.play();
         setPlayCountB(prev => prev + 1);
       }
     } catch (error) {
       console.error('Error playing audio:', error);
-      message.error('播放失敗');
+      const errorMessage = error instanceof Error ? error.message : '播放失敗';
+
+      // Provide more specific error messages
+      if (errorMessage.includes('AudioContext')) {
+        message.error('音頻系統初始化失敗，請重新整理頁面');
+      } else if (errorMessage.includes('not loaded')) {
+        message.error('音頻檔案尚未載入完成');
+      } else {
+        message.error(`播放失敗: ${errorMessage}`);
+      }
     }
   };
 
@@ -308,6 +337,15 @@ export const ABTestInterface: React.FC<ABTestInterfaceProps> = ({
             {Math.floor(audioState.currentTime)}s / {Math.floor(audioState.duration)}s
           </Text>
         </div>
+
+        {/* Error display */}
+        {audioState.error && (
+          <div style={{ textAlign: 'center', marginTop: 8 }}>
+            <Text type="danger" style={{ fontSize: '12px' }}>
+              {audioState.error}
+            </Text>
+          </div>
+        )}
       </Space>
     </Card>
   );
