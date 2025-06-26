@@ -15,24 +15,23 @@ export const HomePage: React.FC = () => {
 
   const handleFormSubmit = async (formData: FormData) => {
     setLoading(true);
-    
+
     try {
-      // Submit form data to get recommendations
+      // Submit form data to generate recommendations (but don't show them)
       const response = await apiService.getRecommendations(formData);
-      
-      message.success('推薦生成成功！');
-      
-      // Navigate to recommendations page with session data
-      navigate('/recommendations', {
+
+      message.success('分析完成，準備開始實驗！');
+
+      // Navigate to experiment setup page with session data
+      navigate('/experiment-setup', {
         state: {
           sessionId: response.session_id,
-          recommendations: response.recommendations,
           formData,
         },
       });
     } catch (error) {
-      console.error('Error getting recommendations:', error);
-      message.error('獲取推薦失敗，請稍後再試');
+      console.error('Error generating recommendations:', error);
+      message.error('分析失敗，請稍後再試');
     } finally {
       setLoading(false);
     }

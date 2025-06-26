@@ -5,6 +5,7 @@
 
 // Form data structure matching the backend API
 export interface FormData {
+  email: string;
   stressLevel: string;
   physicalSymptoms: string[];
   emotionalState: string;
@@ -20,11 +21,11 @@ export interface FormData {
 
 // Form field options
 export const STRESS_LEVELS = [
-  '非常輕鬆',
+  '無壓力',
   '稍微有點壓力',
   '中度壓力',
-  '很大壓力',
-  '壓力爆表'
+  '高度壓力',
+  '極度壓力'
 ] as const;
 
 export const PHYSICAL_SYMPTOMS = [
@@ -36,20 +37,19 @@ export const PHYSICAL_SYMPTOMS = [
 ] as const;
 
 export const EMOTIONAL_STATES = [
-  '焦慮',
-  '沮喪',
   '平靜',
-  '開心',
-  '煩躁',
-  '無感'
+  '焦慮',
+  '憂鬱',
+  '興奮',
+  '疲憊',
+  '煩躁'
 ] as const;
 
 export const SLEEP_GOALS = [
   '快速入眠',
   '維持整夜好眠',
-  '深度放鬆情緒',
-  '降低焦慮/壓力',
-  '喚起正面情緒（愉悅/幸福感）'
+  '改善睡眠品質',
+  '放鬆身心'
 ] as const;
 
 export const SOUND_PREFERENCES = [
@@ -63,8 +63,8 @@ export const SOUND_PREFERENCES = [
 export const RHYTHM_PREFERENCES = [
   '超慢（冥想般，幾乎無節奏）',
   '緩慢穩定（放鬆心跳）',
-  '中低頻流動（輕柔有律動）',
-  '完全無節奏（環境聲）'
+  '中等節奏',
+  '無偏好'
 ] as const;
 
 export const SOUND_SENSITIVITIES = [
@@ -75,23 +75,22 @@ export const SOUND_SENSITIVITIES = [
 ] as const;
 
 export const PLAYBACK_MODES = [
+  '循環播放',
   '逐漸淡出（10~20分鐘入睡）',
-  '全夜播放穩定背景音',
-  '智慧偵測深睡後自動關閉',
+  '定時關閉',
   '無偏好'
 ] as const;
 
 export const GUIDED_VOICE_OPTIONS = [
-  '是，睡前呼吸引導',
-  '是，情緒釋放引導',
+  '是，需要引導冥想',
   '否，只需要純音樂'
 ] as const;
 
 export const SLEEP_THEMES = [
   '平靜如水（穩定神經）',
-  '深海之夢（低頻深度放鬆）',
-  '森林療癒（自然共振）',
-  '星空冥想（輕盈與遼闊）',
+  '森林自然（回歸原始）',
+  '宇宙深邃（無限想像）',
+  '溫暖懷抱（安全感）',
   'AI自動推薦'
 ] as const;
 
@@ -109,6 +108,7 @@ export type SleepTheme = typeof SLEEP_THEMES[number];
 
 // Form validation rules
 export const REQUIRED_FIELDS = [
+  'email',
   'stressLevel',
   'emotionalState',
   'sleepGoal',
@@ -128,7 +128,7 @@ export const FORM_SECTIONS: FormSection[] = [
     id: 'physiological',
     title: '當日狀態評估',
     description: '請根據今天的實際感受填寫',
-    fields: ['stressLevel', 'physicalSymptoms', 'emotionalState']
+    fields: ['email', 'stressLevel', 'physicalSymptoms', 'emotionalState']
   },
   {
     id: 'goals',

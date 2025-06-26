@@ -91,12 +91,24 @@ export const SleepRecommendationForm: React.FC<SleepRecommendationFormProps> = (
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+      console.log('Form values before submission:', values);
+
+      // Check if all required fields are present
+      const missingFields = REQUIRED_FIELDS.filter(field => !values[field]);
+      if (missingFields.length > 0) {
+        console.error('Missing required fields:', missingFields);
+        message.error(`請填寫必填項目: ${missingFields.join(', ')}`);
+        return;
+      }
+
       const completeFormData: FormData = {
         ...values,
         timestamp: new Date().toISOString(),
       };
+      console.log('Complete form data:', completeFormData);
       onSubmit(completeFormData);
     } catch (error) {
+      console.error('Form validation error:', error);
       message.error('請檢查並完成所有必填項目');
     }
   };
@@ -170,7 +182,7 @@ export const SleepRecommendationForm: React.FC<SleepRecommendationFormProps> = (
                 '100%': '#87d068',
               }}
               format={() => `${progress}% 完成`}
-              strokeWidth={8}
+              size={8}
             />
           </div>
         </div>
@@ -221,9 +233,11 @@ export const SleepRecommendationForm: React.FC<SleepRecommendationFormProps> = (
               borderRadius: 8,
               border: '1px solid #e8f4fd'
             }}
-            headStyle={{
-              background: '#f8fcff',
-              borderRadius: '8px 8px 0 0'
+            styles={{
+              header: {
+                background: '#f8fcff',
+                borderRadius: '8px 8px 0 0'
+              }
             }}
           >
             {FORM_SECTIONS[currentStep].description && (

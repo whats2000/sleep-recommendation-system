@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { Form, Radio, Checkbox, Space, Typography } from 'antd';
+import { Form, Radio, Checkbox, Space, Typography, Input } from 'antd';
 import type { FormInstance } from 'antd';
 import {
   STRESS_LEVELS,
@@ -24,6 +24,26 @@ export const PhysiologicalSection: React.FC<PhysiologicalSectionProps> = ({
   return (
     <div className="form-section">
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        {/* Email Field */}
+        <Form.Item
+          name="email"
+          label={
+            <Text strong style={{ fontSize: 16 }}>
+              電子郵件地址
+            </Text>
+          }
+          rules={[
+            { required: true, message: '請輸入您的電子郵件地址' },
+            { type: 'email', message: '請輸入有效的電子郵件地址' }
+          ]}
+        >
+          <Input
+            placeholder="請輸入您的電子郵件地址"
+            size="large"
+            onChange={(e) => onChange('email', e.target.value)}
+          />
+        </Form.Item>
+
         {/* Stress Level Assessment */}
         <Form.Item
           name="stressLevel"

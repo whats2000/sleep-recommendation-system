@@ -81,11 +81,32 @@ class ApiService {
     return response.data;
   }
 
+  // Transform camelCase to snake_case for backend
+  private transformFormData(formData: RecommendationRequest): any {
+    return {
+      email: formData.email,
+      stress_level: formData.stressLevel,
+      physical_symptoms: formData.physicalSymptoms || [],
+      emotional_state: formData.emotionalState,
+      sleep_goal: formData.sleepGoal,
+      sound_preferences: formData.soundPreferences || [],
+      rhythm_preference: formData.rhythmPreference,
+      sound_sensitivities: formData.soundSensitivities || [],
+      playback_mode: formData.playbackMode,
+      guided_voice: formData.guidedVoice,
+      sleep_theme: formData.sleepTheme,
+      user_id: formData.user_id,
+      session_id: formData.session_id,
+    };
+  }
+
   // Get music recommendations
   async getRecommendations(formData: RecommendationRequest): Promise<RecommendationResponse> {
+    const transformedData = this.transformFormData(formData);
+    console.log('Sending data to backend:', transformedData);
     const response = await this.client.post<RecommendationResponse>(
-      '/api/recommendations',
-      formData
+      '/api/recommendations/',
+      transformedData
     );
     return response.data;
   }
@@ -100,9 +121,10 @@ class ApiService {
 
   // Start A/B test session
   async startABTest(formData: RecommendationRequest): Promise<ABTestSession> {
+    const transformedData = this.transformFormData(formData);
     const response = await this.client.post<ABTestSession>(
-      '/api/ab-test/start',
-      formData
+      '/api/experiment/ab-test/start',
+      transformedData
     );
     return response.data;
   }
@@ -110,9 +132,24 @@ class ApiService {
   // Submit A/B test results
   async submitABTestResults(submission: ABTestSubmissionRequest): Promise<ApiResponse> {
     const response = await this.client.post<ApiResponse>(
-      '/api/ab-test/submit',
+      '/api/experiment/ab-test/submit',
       submission
     );
+    return response.data;
+  }
+
+  // Get experiment analytics
+  async getExperimentAnalytics(sessionId?: string): Promise<any> {
+    const url = sessionId
+      ? `/api/experiment/analytics/${sessionId}`
+      : '/api/experiment/analytics';
+    const response = await this.client.get(url);
+    return response.data;
+  }
+
+  // Get experiment status
+  async getExperimentStatus(sessionId: string): Promise<any> {
+    const response = await this.client.get(`/api/experiment/status/${sessionId}`);
     return response.data;
   }
 

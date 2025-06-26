@@ -7,7 +7,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ConfigProvider, Layout, Typography, Space } from 'antd';
 import { SoundOutlined, GithubOutlined } from '@ant-design/icons';
 import { HomePage } from './pages/HomePage';
-import { RecommendationsPage } from './pages/RecommendationsPage';
+import { ExperimentSetupPage } from './pages/RecommendationsPage';
 import { ABTestPage } from './pages/ABTestPage';
 import './App.css';
 
@@ -53,7 +53,7 @@ function App() {
           }}>
             <Routes>
               <Route path="/" element={<HomePage />} />
-              <Route path="/recommendations" element={<RecommendationsPage />} />
+              <Route path="/experiment-setup" element={<ExperimentSetupPage />} />
               <Route path="/ab-test" element={<ABTestPage />} />
             </Routes>
           </Content>

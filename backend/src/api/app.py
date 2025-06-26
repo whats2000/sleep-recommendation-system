@@ -2,22 +2,26 @@
 Flask application factory and main API endpoints.
 """
 
-import os
 from datetime import datetime
+
 from flask import Flask, request, jsonify, redirect
 from flask_cors import CORS
-from flask_restx import Api, Resource, fields, Namespace
+from flask_restx import Api, Resource, fields
 
 from src.service import RecommendationService
 from src.utils.vector_search import get_embeddings_info
+from .experiment import experiment_bp
 
 
-def create_app(config=None):
+def create_app():
     """Create and configure the Flask application."""
     app = Flask(__name__)
 
     # Configure CORS
-    CORS(app, origins=["http://localhost:3000", "http://localhost:5173"])
+    CORS(app, origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"])
+
+    # Register experiment blueprint
+    app.register_blueprint(experiment_bp)
 
     # Configure Flask-RESTX with Swagger documentation
     api = Api(
@@ -34,6 +38,7 @@ def create_app(config=None):
 
     # Define API models for Swagger documentation
     form_data_model = api.model('FormData', {
+        'email': fields.String(required=True, description='User email address'),
         'stress_level': fields.String(required=True, description='User stress level',
                                      enum=['無壓力', '稍微有點壓力', '中度壓力', '高度壓力', '極度壓力']),
         'physical_symptoms': fields.List(fields.String, description='Physical symptoms',
@@ -124,11 +129,14 @@ def create_app(config=None):
                 # Get form data from request
                 try:
                     form_data = request.get_json()
-                except Exception:
+                    print(f"Received form data: {form_data}")
+                except Exception as e:
+                    print(f"Error parsing JSON: {e}")
                     # Handle cases where Content-Type is not application/json
                     form_data = None
 
                 if not form_data:
+                    print("No form data provided")
                     return {
                         "success": False,
                         "error": "No form data provided"
@@ -136,7 +144,7 @@ def create_app(config=None):
                 
                 # Validate required fields
                 required_fields = [
-                    "stress_level", "emotional_state", "sleep_goal", "sleep_theme"
+                    "email", "stress_level", "emotional_state", "sleep_goal", "sleep_theme"
                 ]
                 
                 missing_fields = [field for field in required_fields if field not in form_data]
@@ -189,14 +197,14 @@ def create_app(config=None):
     
     # Error handlers
     @app.errorhandler(404)
-    def not_found(error):
+    def not_found():
         return jsonify({
             "error": "Endpoint not found",
             "message": "The requested endpoint does not exist"
         }), 404
     
     @app.errorhandler(500)
-    def internal_error(error):
+    def internal_error():
         return jsonify({
             "error": "Internal server error",
             "message": "An unexpected error occurred"
@@ -204,7 +212,7 @@ def create_app(config=None):
     
     # Cleanup on app teardown
     @app.teardown_appcontext
-    def cleanup_services(error):
+    def cleanup_services():
         """Clean up services when app context tears down."""
         try:
             recommendation_service.cleanup()
