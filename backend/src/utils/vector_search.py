@@ -74,6 +74,52 @@ def search_similar_tracks(query_embedding: List[float], top_k: int = 5) -> List[
         return []
 
 
+def get_random_tracks(count: int = 5) -> List[Dict[str, any]]:
+    """
+    Get random tracks from the music database for A/B testing.
+
+    Args:
+        count: Number of random tracks to return
+
+    Returns:
+        List of dictionaries containing random track information
+    """
+    try:
+        # Load embeddings and metadata
+        embeddings, metadata = load_embeddings()
+
+        if not metadata:
+            print("No tracks found in database")
+            return []
+
+        # Get random track IDs
+        import random
+        track_ids = list(metadata.keys())
+        random_track_ids = random.sample(track_ids, min(count, len(track_ids)))
+
+        # Format random tracks
+        random_tracks = []
+        for i, track_id in enumerate(random_track_ids):
+            track_metadata = metadata.get(track_id, {})
+
+            track_info = {
+                "track_id": track_id,
+                "title": track_metadata.get("file_name", f"Random Track {i+1}"),
+                "artist": track_metadata.get("artist", "Unknown Artist"),
+                "file_path": track_metadata.get("file_path", ""),
+                "duration": track_metadata.get("duration", 180),
+                "metadata": track_metadata,
+                "track_type": "random"
+            }
+            random_tracks.append(track_info)
+
+        return random_tracks
+
+    except Exception as e:
+        print(f"Error getting random tracks: {e}")
+        return []
+
+
 def get_embeddings_info() -> Dict[str, any]:
     """Get information about the loaded embeddings database."""
     try:

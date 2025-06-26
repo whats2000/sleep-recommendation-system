@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class FormData(BaseModel):
@@ -16,4 +16,4 @@ class FormData(BaseModel):
     playback_mode: str
     guided_voice: str
     sleep_theme: str
-    timestamp: datetime
+    timestamp: Optional[datetime] = Field(default_factory=datetime.now)

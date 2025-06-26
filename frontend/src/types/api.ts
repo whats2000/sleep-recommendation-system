@@ -96,6 +96,12 @@ export interface ABTestSession {
   current_pair_index: number;
   total_pairs: number;
   start_time: string;
+  recommendation_metadata?: {
+    reused_existing?: boolean;
+    recommendations_count?: number;
+    local_session?: boolean;
+    [key: string]: unknown;
+  };
 }
 
 export interface ABTestChoice {

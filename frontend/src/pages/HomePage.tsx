@@ -25,11 +25,12 @@ export const HomePage: React.FC = () => {
 
       message.success('分析完成，準備開始實驗！');
 
-      // Navigate to experiment setup page with session data
+      // Navigate to experiment setup page with session data AND recommendation results
       navigate('/experiment-setup', {
         state: {
           sessionId: response.session_id,
           formData,
+          recommendationResults: response, // Pass the full recommendation results
         },
       });
     } catch (error) {

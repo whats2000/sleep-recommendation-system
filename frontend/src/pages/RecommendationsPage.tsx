@@ -21,13 +21,19 @@ import {
   SoundOutlined,
 } from '@ant-design/icons';
 import type { FormData } from '../types/form';
-import { apiService } from '../services/api';
 
 const { Title, Paragraph, Text } = Typography;
+
+interface RecommendationResults {
+  session_id: string;
+  recommendations: unknown[];
+  [key: string]: unknown;
+}
 
 interface LocationState {
   sessionId: string;
   formData: FormData;
+  recommendationResults?: RecommendationResults; // Full recommendation results from the initial API call
 }
 
 export const ExperimentSetupPage: React.FC = () => {
@@ -52,14 +58,120 @@ export const ExperimentSetupPage: React.FC = () => {
     );
   }
 
-  const { sessionId, formData } = state;
+  const { sessionId, formData, recommendationResults } = state;
 
   const handleStartABTest = async () => {
     setLoading(true);
 
     try {
-      // Start A/B test session
-      const abTestSession = await apiService.startABTest(formData);
+      // Validate we have recommendation results
+      if (!recommendationResults || !recommendationResults.recommendations) {
+        message.error('沒有可用的推薦結果，請重新提交表單');
+        return;
+      }
+
+      const recommendations = recommendationResults.recommendations;
+
+      // Validate we have enough recommendations (need at least 5)
+      if (recommendations.length < 5) {
+        message.error('推薦結果不足，需要至少5首推薦音樂');
+        return;
+      }
+
+      console.log('Creating A/B test with REAL music data...');
+      console.log('Recommended tracks:', recommendations);
+
+      // Get 5 random tracks from the database for comparison
+      message.info('正在獲取隨機音樂樣本進行對比測試...');
+
+      const randomTracksResponse = await fetch('/api/music/random?count=5');
+      if (!randomTracksResponse.ok) {
+        throw new Error('Failed to fetch random tracks');
+      }
+
+      const randomTracks = await randomTracksResponse.json();
+
+      if (!randomTracks || randomTracks.length < 5) {
+        throw new Error('Insufficient random tracks available');
+      }
+
+      console.log('Random tracks for comparison:', randomTracks);
+
+      // Create 5 test pairs: each pair compares 1 recommended track vs 1 random track
+      const testPairs = [];
+      for (let i = 0; i < 5; i++) {
+        const recommendedTrack = recommendations[i] as any;
+        const randomTrack = randomTracks[i] as any;
+
+        // Randomly decide which position (A or B) gets the recommended track
+        const recommendedInA = Math.random() > 0.5;
+
+        const trackA = recommendedInA ? {
+          id: recommendedTrack.track_id || recommendedTrack.id,
+          title: recommendedTrack.title,
+          artist: recommendedTrack.artist,
+          duration: recommendedTrack.duration || 180,
+          file_path: recommendedTrack.file_path,
+          similarity_score: recommendedTrack.similarity_score,
+          metadata: recommendedTrack.metadata,
+          track_type: 'recommended' // Mark as recommended track
+        } : {
+          id: randomTrack.track_id || randomTrack.id,
+          title: randomTrack.title,
+          artist: randomTrack.artist,
+          duration: randomTrack.duration || 180,
+          file_path: randomTrack.file_path,
+          metadata: randomTrack.metadata,
+          track_type: 'random' // Mark as random track
+        };
+
+        const trackB = recommendedInA ? {
+          id: randomTrack.track_id || randomTrack.id,
+          title: randomTrack.title,
+          artist: randomTrack.artist,
+          duration: randomTrack.duration || 180,
+          file_path: randomTrack.file_path,
+          metadata: randomTrack.metadata,
+          track_type: 'random'
+        } : {
+          id: recommendedTrack.track_id || recommendedTrack.id,
+          title: recommendedTrack.title,
+          artist: recommendedTrack.artist,
+          duration: recommendedTrack.duration || 180,
+          file_path: recommendedTrack.file_path,
+          similarity_score: recommendedTrack.similarity_score,
+          metadata: recommendedTrack.metadata,
+          track_type: 'recommended'
+        };
+
+        testPairs.push({
+          id: `pair_${i + 1}`,
+          track_a: trackA,
+          track_b: trackB,
+          position_randomized: recommendedInA,
+          recommended_track_position: recommendedInA ? 'A' : 'B'
+        });
+      }
+
+      // Create A/B test session with REAL music comparison
+      const abTestSession = {
+        session_id: sessionId,
+        user_id: `user_${Date.now()}`,
+        form_data: formData,
+        test_pairs: testPairs,
+        current_pair_index: 0,
+        total_pairs: testPairs.length,
+        start_time: new Date().toISOString(),
+        recommendation_metadata: {
+          reused_existing: true,
+          recommendations_count: recommendations.length,
+          random_tracks_count: randomTracks.length,
+          test_type: 'recommended_vs_random',
+          local_session: false // This uses REAL data
+        }
+      };
+
+      console.log('Created A/B test session with REAL music data:', abTestSession);
 
       navigate('/ab-test', {
         state: {
@@ -67,8 +179,8 @@ export const ExperimentSetupPage: React.FC = () => {
         },
       });
     } catch (error) {
-      console.error('Error starting A/B test:', error);
-      message.error('無法啟動測試，請稍後再試');
+      console.error('Error creating A/B test session:', error);
+      message.error('無法創建測試會話，請稍後再試');
     } finally {
       setLoading(false);
     }

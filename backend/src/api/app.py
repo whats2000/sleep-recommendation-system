@@ -112,6 +112,7 @@ def create_app():
     # Create namespaces for better organization
     recommendations_ns = api.namespace('recommendations', description='Music recommendation operations')
     pipeline_ns = api.namespace('pipeline', description='Pipeline status operations')
+    music_ns = api.namespace('music', description='Music database operations')
 
     # Main recommendation endpoint
     @recommendations_ns.route('/')
@@ -194,7 +195,66 @@ def create_app():
                 return {
                     "error": f"Status retrieval error: {str(e)}"
                 }, 500
-    
+
+    # Random tracks endpoint for A/B testing
+    @music_ns.route('/random')
+    class RandomTracksResource(Resource):
+        @music_ns.doc('get_random_tracks')
+        def get(self):
+            """Get random tracks from the music database for A/B testing comparison.
+
+            This endpoint returns random tracks to compare against personalized recommendations.
+            """
+            try:
+                from src.utils.vector_search import get_random_tracks
+
+                # Get count parameter (default 5)
+                count = request.args.get('count', 5, type=int)
+                if count > 20:  # Limit to prevent abuse
+                    count = 20
+
+                # Get random tracks from the database
+                random_tracks = get_random_tracks(count)
+
+                if not random_tracks:
+                    return {
+                        "error": "No tracks available in database"
+                    }, 404
+
+                return random_tracks, 200
+
+            except Exception as e:
+                print(f"Error getting random tracks: {e}")
+                return {
+                    "error": "Failed to get random tracks"
+                }, 500
+
+    # Audio serving endpoint
+    @app.route('/api/audio/<path:filename>')
+    def serve_audio(filename):
+        """Serve audio files for playback."""
+        try:
+            import os
+            from flask import send_from_directory
+
+            # Define the audio directory (adjust path as needed)
+            audio_dir = os.path.join(os.getcwd(), "data", "audio")
+
+            # Security check - ensure filename doesn't contain path traversal
+            if '..' in filename or filename.startswith('/'):
+                return jsonify({"error": "Invalid filename"}), 400
+
+            # Check if file exists
+            file_path = os.path.join(audio_dir, filename)
+            if not os.path.exists(file_path):
+                return jsonify({"error": "Audio file not found"}), 404
+
+            return send_from_directory(audio_dir, filename)
+
+        except Exception as e:
+            print(f"Error serving audio file: {e}")
+            return jsonify({"error": "Failed to serve audio file"}), 500
+
     # Error handlers
     @app.errorhandler(404)
     def not_found():

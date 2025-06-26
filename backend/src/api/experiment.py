@@ -21,24 +21,24 @@ experiment_bp = Blueprint('experiment', __name__, url_prefix='/api/experiment')
 experiment_api = Api(experiment_bp)
 
 class ABTestStartResource(Resource):
-    """Start a new A/B test session"""
+    """Start a new A/B test session (recalculates recommendations - SLOW)"""
     @staticmethod
     def post():
         try:
             data = request.get_json()
-            
+
             if not data:
                 return {'error': 'No data provided'}, 400
-            
+
             # Validate required fields (using snake_case to match main API)
             required_fields = ['stress_level', 'emotional_state', 'sleep_goal', 'sleep_theme']
             for field in required_fields:
                 if field not in data:
                     return {'error': f'Missing required field: {field}'}, 400
-            
+
             # Generate session ID
             session_id = str(uuid.uuid4())
-            
+
             # Get recommendations for A/B testing
             recommendation_service = RecommendationService()
             recommendation_result = recommendation_service.get_recommendations(data)
@@ -60,7 +60,7 @@ class ABTestStartResource(Resource):
                 user_data=data,
                 recommendations=recommendations
             )
-            
+
             logger.info(f"Started A/B test session: {session_id}")
 
             return {
@@ -77,10 +77,63 @@ class ABTestStartResource(Resource):
                     'generated_prompt': recommendation_result.get('generated_prompt')
                 }
             }, 200
-            
+
         except Exception as e:
             logger.error(f"Error starting A/B test: {str(e)}")
             return {'error': 'Failed to start A/B test'}, 500
+
+
+class ABTestStartWithRecommendationsResource(Resource):
+    """Start A/B test session with existing recommendations (FAST)"""
+    @staticmethod
+    def post():
+        try:
+            data = request.get_json()
+
+            if not data:
+                return {'error': 'No data provided'}, 400
+
+            # Validate required fields
+            required_fields = ['session_id', 'form_data', 'recommendations']
+            for field in required_fields:
+                if field not in data:
+                    return {'error': f'Missing required field: {field}'}, 400
+
+            session_id = data['session_id']
+            form_data = data['form_data']
+            recommendations = data['recommendations']
+
+            # Validate that we have recommendations
+            if not recommendations or len(recommendations) == 0:
+                return {'error': 'No recommendations provided'}, 400
+
+            # Create A/B test pairs using existing recommendations
+            experiment_service = ExperimentService()
+            test_session = experiment_service.create_ab_test_session(
+                session_id=session_id,
+                user_data=form_data,
+                recommendations=recommendations
+            )
+
+            logger.info(f"Started A/B test session with existing recommendations: {session_id}")
+
+            return {
+                'session_id': session_id,
+                'user_id': test_session.get('user_id'),
+                'form_data': form_data,
+                'test_pairs': test_session['test_pairs'],
+                'current_pair_index': 0,
+                'total_pairs': len(test_session['test_pairs']),
+                'start_time': datetime.now().isoformat(),
+                'recommendation_metadata': {
+                    'reused_existing': True,
+                    'recommendations_count': len(recommendations)
+                }
+            }, 200
+
+        except Exception as e:
+            logger.error(f"Error starting A/B test with recommendations: {str(e)}")
+            return {'error': 'Failed to start A/B test with recommendations'}, 500
 
 class ABTestSubmitResource(Resource):
     """Submit A/B test results"""
@@ -166,6 +219,7 @@ class ExperimentStatusResource(Resource):
 
 # Register resources
 experiment_api.add_resource(ABTestStartResource, '/ab-test/start')
+experiment_api.add_resource(ABTestStartWithRecommendationsResource, '/ab-test/start-with-recommendations')
 experiment_api.add_resource(ABTestSubmitResource, '/ab-test/submit')
 experiment_api.add_resource(ExperimentAnalyticsResource, '/analytics', '/analytics/<string:session_id>')
 experiment_api.add_resource(ExperimentStatusResource, '/status/<string:session_id>')

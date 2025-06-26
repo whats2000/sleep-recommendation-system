@@ -95,6 +95,7 @@ export const ABTestInterface: React.FC<ABTestInterfaceProps> = ({
     const loadAudio = async () => {
       try {
         if (audioServiceA.current && audioServiceB.current) {
+          // Load actual audio files from the music database
           await Promise.all([
             audioServiceA.current.loadAudio(`/api/audio/${currentPair.track_a.file_path}`),
             audioServiceB.current.loadAudio(`/api/audio/${currentPair.track_b.file_path}`),
@@ -301,6 +302,22 @@ export const ABTestInterface: React.FC<ABTestInterfaceProps> = ({
           <Title level={2} style={{ textAlign: 'center', marginBottom: 8 }}>
             音樂偏好測試
           </Title>
+
+          {/* A/B Test Type Indicator */}
+          {session.recommendation_metadata?.test_type === 'recommended_vs_random' && (
+            <div style={{
+              textAlign: 'center',
+              marginBottom: 16,
+              padding: '8px 16px',
+              background: '#f6ffed',
+              border: '1px solid #b7eb8f',
+              borderRadius: '6px',
+              color: '#52c41a'
+            }}>
+              <SoundOutlined /> 推薦音樂 vs 隨機音樂對比測試
+            </div>
+          )}
+
           <Paragraph style={{ textAlign: 'center', color: '#666' }}>
             請聆聽以下兩首音樂，選擇您更偏好的一首
           </Paragraph>

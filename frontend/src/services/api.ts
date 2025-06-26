@@ -135,7 +135,7 @@ class ApiService {
     return response.data;
   }
 
-  // Start A/B test session
+  // Start A/B test session (recalculates recommendations - SLOW)
   async startABTest(formData: RecommendationRequest): Promise<ABTestSession> {
     const transformedData = this.transformFormData(formData);
     const response = await this.client.post<ABTestSession>(
@@ -143,6 +143,23 @@ class ApiService {
       transformedData,
       {
         timeout: 180000, // 3 minutes timeout for A/B test setup
+      }
+    );
+    return response.data;
+  }
+
+  // Start A/B test session with existing recommendations (FAST)
+  async startABTestWithRecommendations(sessionId: string, formData: RecommendationRequest, recommendations: unknown[]): Promise<ABTestSession> {
+    const transformedData = this.transformFormData(formData);
+    const response = await this.client.post<ABTestSession>(
+      '/api/experiment/ab-test/start-with-recommendations',
+      {
+        session_id: sessionId,
+        form_data: transformedData,
+        recommendations: recommendations,
+      },
+      {
+        timeout: 30000, // Much faster since we're not recalculating
       }
     );
     return response.data;
