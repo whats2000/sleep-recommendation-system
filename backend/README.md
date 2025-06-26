@@ -57,7 +57,7 @@ User Form → LangGraph Pipeline → MusicGen → CLAP Encoding → Vector Searc
    ```bash
    # Place your audio files in backend/dataset/
    # Run encoding script to create embeddings
-   uv run python src/utils/encode_audio.py
+   uv run python src/scripts/encode_dataset.py
    ```
 
 ## Usage
@@ -66,7 +66,7 @@ User Form → LangGraph Pipeline → MusicGen → CLAP Encoding → Vector Searc
 
 ```bash
 cd backend
-uv run python src/main.py
+uv run main.py
 ```
 
 The server will start on `http://localhost:5000`
@@ -113,17 +113,17 @@ Run the comprehensive test suite:
 
 ```bash
 cd backend
-uv run python run_tests.py
+uv run run_tests.py
 ```
 
 Or run individual test files:
 
 ```bash
 # Test the LangGraph pipeline
-uv run python tests/test_pipeline.py
+uv run tests/test_pipeline.py
 
 # Test the API endpoints
-uv run python tests/test_api.py
+uv run tests/test_api.py
 ```
 
 ## Configuration

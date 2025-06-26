@@ -25,17 +25,18 @@ def prompt_generation_agent(state: RecommendationState) -> Dict[str, Any]:
             raise ValueError("No integrated requirements available for prompt generation")
         
         system_prompt = """You are a MusicGen prompt engineering specialist.
-        Create optimized prompts for the MusicGen model based on integrated requirements.
-        
+        Create CONCISE, optimized prompts for the MusicGen model based on integrated requirements.
+
+        IMPORTANT: Keep prompts under 150 characters for optimal model performance.
+
         MusicGen prompt structure should include:
-        - Genre and style descriptors
-        - Tempo and rhythm specifications
-        - Mood and emotional descriptors
-        - Instrument specifications
-        - Audio characteristics (frequency, dynamics)
-        - Duration specifications
-        
-        Focus on sleep-conducive music generation."""
+        - Genre and style (e.g., "ambient", "classical")
+        - Tempo (e.g., "slow", "60 BPM")
+        - Mood (e.g., "calming", "peaceful")
+        - Key instruments (max 2-3, e.g., "piano", "strings")
+        - Brief audio characteristics (e.g., "soft", "warm")
+
+        Focus on sleep-conducive music generation. Be concise and specific."""
         
         final_specs = integrated_requirements.final_specifications
         user_prompt = f"""
@@ -45,11 +46,13 @@ def prompt_generation_agent(state: RecommendationState) -> Dict[str, Any]:
         - Mood: {final_specs.get('mood', 'calming')}
         - Instruments: {final_specs.get('instruments', ['piano'])}
         - Priority: {', '.join(integrated_requirements.priority_ranking)}
-        
-        Generate a MusicGen prompt in the following format:
-        MusicGen Prompt: [detailed prompt for music generation]
+
+        Generate a CONCISE MusicGen prompt (under 150 characters) in the following format:
+        MusicGen Prompt: [concise prompt for music generation - keep it short and focused]
         Components: genre=[genre], tempo=[tempo], mood=[mood], instruments=[instruments]
         Parameters: duration=[seconds], sample_rate=[rate], guidance_scale=[scale]
+
+        Example good prompt: "Ambient piano, slow 60 BPM, peaceful, soft dynamics, sleep-inducing"
         """
         
         if llm:
@@ -66,8 +69,10 @@ def prompt_generation_agent(state: RecommendationState) -> Dict[str, Any]:
             mood = final_specs.get('mood', 'calming')
             instruments = final_specs.get('instruments', ['piano'])
             
+            # Create a concise prompt for mock response
+            instruments_str = ', '.join(instruments[:2])  # Limit to 2 instruments for brevity
             analysis_text = f"""
-            MusicGen Prompt: {genre} music, {tempo} tempo, {mood} atmosphere, featuring {', '.join(instruments)}, soft dynamics, sleep-inducing, peaceful, 432Hz tuning, gentle fade-in
+            MusicGen Prompt: {genre} {instruments_str}, {tempo}, {mood}, soft, sleep-inducing
             Components: genre={genre}, tempo={tempo}, mood={mood}, instruments={','.join(instruments)}
             Parameters: duration=30, sample_rate=32000, guidance_scale=3.0
             """
@@ -126,7 +131,9 @@ def prompt_generation_agent(state: RecommendationState) -> Dict[str, Any]:
             mood = final_specs.get('mood', 'calming')
             instruments = final_specs.get('instruments', ['piano'])
             
-            musicgen_prompt = f"{genre} music, {tempo} tempo, {mood} atmosphere, featuring {', '.join(instruments)}, soft dynamics, sleep-inducing, peaceful"
+            # Create concise fallback prompt
+            instruments_str = ', '.join(instruments[:2])  # Limit to 2 instruments
+            musicgen_prompt = f"{genre} {instruments_str}, {tempo}, {mood}, soft, peaceful"
             prompt_components = {
                 "genre": genre,
                 "tempo": tempo,
@@ -134,6 +141,18 @@ def prompt_generation_agent(state: RecommendationState) -> Dict[str, Any]:
                 "instruments": ','.join(instruments)
             }
         
+        # Validate and truncate prompt if too long
+        if len(musicgen_prompt) > 200:
+            print(f"Warning: Generated prompt is {len(musicgen_prompt)} characters, truncating...")
+            # Truncate at word boundary
+            truncated = musicgen_prompt[:200]
+            last_space = truncated.rfind(' ')
+            if last_space > 160:  # If we can find a space in reasonable range
+                musicgen_prompt = truncated[:last_space]
+            else:
+                musicgen_prompt = truncated
+            print(f"Truncated prompt: {musicgen_prompt}")
+
         # Safely convert duration to integer
         try:
             duration_value = generation_parameters.get("duration", 30)

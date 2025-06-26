@@ -67,6 +67,12 @@ def create_app(config=None):
         'error': fields.String(description='Error message if unsuccessful')
     })
 
+    # Default endpoint
+    @app.route('/')
+    def index():
+        """Redirect to the Swagger documentation."""
+        return redirect('/docs/')
+
     # Health check endpoint
     @app.route('/health', methods=['GET'])
     def health_check():
