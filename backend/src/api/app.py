@@ -62,8 +62,12 @@ def create_app(config=None):
             """Get music recommendations based on form data."""
             try:
                 # Get form data from request
-                form_data = request.get_json()
-                
+                try:
+                    form_data = request.get_json()
+                except Exception:
+                    # Handle cases where Content-Type is not application/json
+                    form_data = None
+
                 if not form_data:
                     return {
                         "success": False,

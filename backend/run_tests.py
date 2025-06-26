@@ -22,12 +22,12 @@ def run_pipeline_test():
         # Sample data
         sample_data = {
             "stress_level": "中度壓力",
-            "physical_symptoms": ["頭腦過度活躍"],
+            "physical_symptoms": ["頭腦過度活躍", "肌肉緊繃"],
             "emotional_state": "焦慮",
             "sleep_goal": "快速入眠",
             "sound_preferences": ["樂器聲（鋼琴、古典、弦樂）"],
             "rhythm_preference": "超慢（冥想般，幾乎無節奏）",
-            "sound_sensitivities": [],
+            "sound_sensitivities": ["高頻刺耳聲"],
             "playback_mode": "逐漸淡出（10~20分鐘入睡）",
             "guided_voice": "否，只需要純音樂",
             "sleep_theme": "平靜如水（穩定神經）",
@@ -98,12 +98,12 @@ def run_api_test():
             print("3. Testing recommendations endpoint...")
             sample_data = {
                 "stress_level": "中度壓力",
-                "physical_symptoms": ["頭腦過度活躍"],
+                "physical_symptoms": ["頭腦過度活躍", "肌肉緊繃"],
                 "emotional_state": "焦慮",
                 "sleep_goal": "快速入眠",
                 "sound_preferences": ["樂器聲（鋼琴、古典、弦樂）"],
                 "rhythm_preference": "超慢（冥想般，幾乎無節奏）",
-                "sound_sensitivities": [],
+                "sound_sensitivities": ["高頻刺耳聲"],
                 "playback_mode": "逐漸淡出（10~20分鐘入睡）",
                 "guided_voice": "否，只需要純音樂",
                 "sleep_theme": "平靜如水（穩定神經）"
@@ -153,12 +153,12 @@ def run_integration_test():
         print("3. Testing end-to-end recommendation...")
         sample_data = {
             "stress_level": "中度壓力",
-            "physical_symptoms": ["頭腦過度活躍"],
+            "physical_symptoms": ["頭腦過度活躍", "肌肉緊繃"],
             "emotional_state": "焦慮",
             "sleep_goal": "快速入眠",
             "sound_preferences": ["樂器聲（鋼琴、古典、弦樂）"],
             "rhythm_preference": "超慢（冥想般，幾乎無節奏）",
-            "sound_sensitivities": [],
+            "sound_sensitivities": ["高頻刺耳聲"],
             "playback_mode": "逐漸淡出（10~20分鐘入睡）",
             "guided_voice": "否，只需要純音樂",
             "sleep_theme": "平靜如水（穩定神經）",
