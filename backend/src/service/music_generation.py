@@ -29,7 +29,6 @@ class MusicGenerationService:
         self.model_name = model_name
         self.synthesiser = None
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self._load_model()
     
     def _load_model(self):
         """Load the MusicGen pipeline."""
@@ -46,7 +45,8 @@ class MusicGenerationService:
             print("CRITICAL: MusicGen pipeline failed to load. System will not return fake data.")
             self.synthesiser = None
 
-    def _sanitize_prompt(self, prompt: str) -> str:
+    @staticmethod
+    def _sanitize_prompt(prompt: str) -> str:
         """
         Sanitize the prompt to ensure it works well with MusicGen.
 

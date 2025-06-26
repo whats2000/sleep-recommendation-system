@@ -91,19 +91,45 @@ export const ABTestInterface: React.FC<ABTestInterfaceProps> = ({
     audioControlsA.current = createAudioControls(audioServiceA.current);
     audioControlsB.current = createAudioControls(audioServiceB.current);
 
+    // Helper function to extract filename from full path
+    const getFilename = (filePath: string): string => {
+      if (!filePath) return '';
+      // Handle both Windows and Unix path separators
+      const parts = filePath.split(/[/\\]/);
+      return parts[parts.length - 1];
+    };
+
     // Load audio files
     const loadAudio = async () => {
       try {
         if (audioServiceA.current && audioServiceB.current) {
+          // Extract filenames from full paths
+          const filenameA = getFilename(currentPair.track_a.file_path);
+          const filenameB = getFilename(currentPair.track_b.file_path);
+
+          console.log('Loading audio files:', {
+            filenameA,
+            filenameB,
+            originalPathA: currentPair.track_a.file_path,
+            originalPathB: currentPair.track_b.file_path
+          });
+
+          if (!filenameA || !filenameB) {
+            throw new Error(`Invalid filenames: A="${filenameA}", B="${filenameB}"`);
+          }
+
           // Load actual audio files from the music database
           await Promise.all([
-            audioServiceA.current.loadAudio(`/api/audio/${currentPair.track_a.file_path}`),
-            audioServiceB.current.loadAudio(`/api/audio/${currentPair.track_b.file_path}`),
+            audioServiceA.current.loadAudio(`/api/audio/${encodeURIComponent(filenameA)}`),
+            audioServiceB.current.loadAudio(`/api/audio/${encodeURIComponent(filenameB)}`),
           ]);
+
+          console.log('Audio files loaded successfully');
         }
       } catch (error) {
         console.error('Error loading audio:', error);
-        onError('無法載入音頻檔案');
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        onError(`無法載入音頻檔案: ${errorMessage}`);
       }
     };
 

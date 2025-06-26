@@ -33,10 +33,10 @@ export interface StatusResponse {
 
 // Music recommendation types
 export interface MusicTrack {
-  id: string;
+  track_id: string;
   title: string;
   artist?: string;
-  duration: number;
+  duration?: number;
   file_path: string;
   similarity_score?: number;
   metadata?: {
@@ -45,6 +45,22 @@ export interface MusicTrack {
     mood?: string;
     instruments?: string[];
   };
+}
+
+export interface RandomTrack {
+  track_id: string;
+  title: string;
+  artist: string;
+  duration: number;
+  file_path: string;
+  metadata?: any;
+  track_type?: string;
+}
+
+export interface RandomTracksResponse {
+  tracks: RandomTrack[];
+  count: number;
+  error?: string;
 }
 
 export interface RecommendationResponse {

@@ -79,8 +79,8 @@ def create_music_blueprint():
         Includes security checks to prevent path traversal attacks.
         """
         try:
-            # Define the audio directory (adjust path as needed)
-            audio_dir = os.path.join(os.getcwd(), "data", "audio")
+            # Define the audio directory (where the actual audio files are stored)
+            audio_dir = os.path.join(os.getcwd(), "dataset")
 
             # Security check - ensure filename doesn't contain path traversal
             if '..' in filename or filename.startswith('/'):

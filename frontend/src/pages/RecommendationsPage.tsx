@@ -20,6 +20,7 @@ import {
   HomeOutlined,
   SoundOutlined,
 } from '@ant-design/icons';
+import type { RandomTracksResponse, MusicTrack } from '../types/api';
 import type { FormData } from '../types/form';
 
 const { Title, Paragraph, Text } = Typography;
@@ -89,58 +90,63 @@ export const ExperimentSetupPage: React.FC = () => {
         throw new Error('Failed to fetch random tracks');
       }
 
-      const randomTracks = await randomTracksResponse.json();
+      const randomTracksData: RandomTracksResponse = await randomTracksResponse.json();
 
-      if (!randomTracks || randomTracks.length < 5) {
+      if (!randomTracksData || !randomTracksData.tracks || randomTracksData.tracks.length < 5) {
         throw new Error('Insufficient random tracks available');
       }
 
+      const randomTracks = randomTracksData.tracks;
       console.log('Random tracks for comparison:', randomTracks);
 
       // Create 5 test pairs: each pair compares 1 recommended track vs 1 random track
       const testPairs = [];
       for (let i = 0; i < 5; i++) {
-        const recommendedTrack = recommendations[i] as any;
-        const randomTrack = randomTracks[i] as any;
+        const recommendedTrack = recommendations[i] as MusicTrack;
+        const randomTrack = randomTracks[i];
+
+        if (!recommendedTrack || !randomTrack) {
+          throw new Error(`Missing track data for pair ${i + 1}`);
+        }
 
         // Randomly decide which position (A or B) gets the recommended track
         const recommendedInA = Math.random() > 0.5;
 
         const trackA = recommendedInA ? {
-          id: recommendedTrack.track_id || recommendedTrack.id,
-          title: recommendedTrack.title,
-          artist: recommendedTrack.artist,
+          id: recommendedTrack.track_id || `rec_${i}_a`,
+          title: recommendedTrack.title || 'Unknown Title',
+          artist: recommendedTrack.artist || 'Unknown Artist',
           duration: recommendedTrack.duration || 180,
-          file_path: recommendedTrack.file_path,
+          file_path: recommendedTrack.file_path || '',
           similarity_score: recommendedTrack.similarity_score,
-          metadata: recommendedTrack.metadata,
+          metadata: recommendedTrack.metadata || {},
           track_type: 'recommended' // Mark as recommended track
         } : {
-          id: randomTrack.track_id || randomTrack.id,
-          title: randomTrack.title,
-          artist: randomTrack.artist,
+          id: randomTrack.track_id || `rand_${i}_a`,
+          title: randomTrack.title || 'Unknown Title',
+          artist: randomTrack.artist || 'Unknown Artist',
           duration: randomTrack.duration || 180,
-          file_path: randomTrack.file_path,
-          metadata: randomTrack.metadata,
+          file_path: randomTrack.file_path || '',
+          metadata: randomTrack.metadata || {},
           track_type: 'random' // Mark as random track
         };
 
         const trackB = recommendedInA ? {
-          id: randomTrack.track_id || randomTrack.id,
-          title: randomTrack.title,
-          artist: randomTrack.artist,
+          id: randomTrack.track_id || `rand_${i}_b`,
+          title: randomTrack.title || 'Unknown Title',
+          artist: randomTrack.artist || 'Unknown Artist',
           duration: randomTrack.duration || 180,
-          file_path: randomTrack.file_path,
-          metadata: randomTrack.metadata,
+          file_path: randomTrack.file_path || '',
+          metadata: randomTrack.metadata || {},
           track_type: 'random'
         } : {
-          id: recommendedTrack.track_id || recommendedTrack.id,
-          title: recommendedTrack.title,
-          artist: recommendedTrack.artist,
+          id: recommendedTrack.track_id || `rec_${i}_b`,
+          title: recommendedTrack.title || 'Unknown Title',
+          artist: recommendedTrack.artist || 'Unknown Artist',
           duration: recommendedTrack.duration || 180,
-          file_path: recommendedTrack.file_path,
+          file_path: recommendedTrack.file_path || '',
           similarity_score: recommendedTrack.similarity_score,
-          metadata: recommendedTrack.metadata,
+          metadata: recommendedTrack.metadata || {},
           track_type: 'recommended'
         };
 
