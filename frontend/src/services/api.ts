@@ -24,7 +24,7 @@ class ApiService {
     
     this.client = axios.create({
       baseURL: this.baseURL,
-      timeout: 30000, // 30 seconds timeout
+      timeout: 120000, // 2 minutes timeout for model evaluation
       headers: {
         'Content-Type': 'application/json',
       },
@@ -83,7 +83,9 @@ class ApiService {
 
   // Transform camelCase to snake_case for backend
   private transformFormData(formData: RecommendationRequest): any {
-    return {
+    console.log('Original form data:', formData);
+
+    const transformed = {
       email: formData.email,
       stress_level: formData.stressLevel,
       physical_symptoms: formData.physicalSymptoms || [],
@@ -98,6 +100,17 @@ class ApiService {
       user_id: formData.user_id,
       session_id: formData.session_id,
     };
+
+    console.log('Transformed form data:', transformed);
+
+    // Check for missing required fields
+    const requiredFields = ['email', 'stress_level', 'emotional_state', 'sleep_goal', 'sleep_theme'];
+    const missingFields = requiredFields.filter(field => !(transformed as any)[field]);
+    if (missingFields.length > 0) {
+      console.error('Missing required fields in transformed data:', missingFields);
+    }
+
+    return transformed;
   }
 
   // Get music recommendations
@@ -106,7 +119,10 @@ class ApiService {
     console.log('Sending data to backend:', transformedData);
     const response = await this.client.post<RecommendationResponse>(
       '/api/recommendations/',
-      transformedData
+      transformedData,
+      {
+        timeout: 180000, // 3 minutes timeout for recommendation generation
+      }
     );
     return response.data;
   }
@@ -124,7 +140,10 @@ class ApiService {
     const transformedData = this.transformFormData(formData);
     const response = await this.client.post<ABTestSession>(
       '/api/experiment/ab-test/start',
-      transformedData
+      transformedData,
+      {
+        timeout: 180000, // 3 minutes timeout for A/B test setup
+      }
     );
     return response.data;
   }

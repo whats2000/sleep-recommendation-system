@@ -57,6 +57,9 @@ export const SleepRecommendationForm: React.FC<SleepRecommendationFormProps> = (
       ...prev,
       [field]: value,
     }));
+
+    // Also update the form instance to ensure consistency
+    form.setFieldValue(field, value);
   };
 
   // Validate current step
@@ -67,6 +70,10 @@ export const SleepRecommendationForm: React.FC<SleepRecommendationFormProps> = (
     );
 
     try {
+      // Get current form values and sync with local state
+      const currentValues = form.getFieldsValue();
+      setFormData(prev => ({ ...prev, ...currentValues }));
+
       await form.validateFields(fieldsToValidate);
       return true;
     } catch (error) {
@@ -90,11 +97,17 @@ export const SleepRecommendationForm: React.FC<SleepRecommendationFormProps> = (
   // Handle form submission
   const handleSubmit = async () => {
     try {
+      // First sync all form values with local state
+      const currentValues = form.getFieldsValue();
+      const mergedData = { ...formData, ...currentValues };
+      setFormData(mergedData);
+
       const values = await form.validateFields();
       console.log('Form values before submission:', values);
+      console.log('Merged form data:', mergedData);
 
-      // Check if all required fields are present
-      const missingFields = REQUIRED_FIELDS.filter(field => !values[field]);
+      // Check if all required fields are present in the merged data
+      const missingFields = REQUIRED_FIELDS.filter(field => !mergedData[field]);
       if (missingFields.length > 0) {
         console.error('Missing required fields:', missingFields);
         message.error(`請填寫必填項目: ${missingFields.join(', ')}`);
@@ -102,7 +115,7 @@ export const SleepRecommendationForm: React.FC<SleepRecommendationFormProps> = (
       }
 
       const completeFormData: FormData = {
-        ...values,
+        ...mergedData,
         timestamp: new Date().toISOString(),
       };
       console.log('Complete form data:', completeFormData);
@@ -282,13 +295,13 @@ export const SleepRecommendationForm: React.FC<SleepRecommendationFormProps> = (
                   loading={loading}
                   size="large"
                   style={{
-                    minWidth: 140,
+                    minWidth: 160,
                     background: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
                     border: 'none',
                     boxShadow: '0 4px 12px rgba(24, 144, 255, 0.3)'
                   }}
                 >
-                  🎵 獲取推薦
+                  {loading ? '🎵 AI 正在分析中...' : '🎵 獲取推薦 (需1-3分鐘)'}
                 </Button>
               )}
             </Space>

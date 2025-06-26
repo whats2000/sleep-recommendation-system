@@ -72,7 +72,9 @@ class RecommendationService:
             
             # Step 2: Generate reference audio using MusicGen
             print("Step 2: Generating reference audio...")
+            print("  - Loading MusicGen model (this may take a moment)...")
             audio_path = self._generate_reference_audio(generated_prompt)
+            print("  - Audio generation completed")
             
             if not audio_path:
                 return {
@@ -84,7 +86,9 @@ class RecommendationService:
             
             # Step 3: Encode audio using CLAP
             print("Step 3: Encoding audio with CLAP...")
+            print("  - Loading CLAP model for audio encoding...")
             audio_embedding = self._encode_audio(audio_path)
+            print("  - Audio encoding completed")
             
             if audio_embedding is None:
                 return {
@@ -135,7 +139,8 @@ class RecommendationService:
         """Generate reference audio from the prompt."""
         try:
             prompt_text = generated_prompt["musicgen_prompt"]
-            duration = generated_prompt.get("expected_duration", 30)
+            # Use shorter duration to prevent generation errors
+            duration = min(generated_prompt.get("expected_duration", 15), 15)  # Max 15 seconds
             guidance_scale = generated_prompt.get("generation_parameters", {}).get("guidance_scale", 3.0)
             
             audio_path = self.music_gen_service.generate_audio(

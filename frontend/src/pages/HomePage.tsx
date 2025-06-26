@@ -17,6 +17,9 @@ export const HomePage: React.FC = () => {
     setLoading(true);
 
     try {
+      // Show a message about processing time
+      message.info('正在分析您的需求並生成個人化推薦，這可能需要 1-3 分鐘，請耐心等待...', 5);
+
       // Submit form data to generate recommendations (but don't show them)
       const response = await apiService.getRecommendations(formData);
 
@@ -31,7 +34,11 @@ export const HomePage: React.FC = () => {
       });
     } catch (error) {
       console.error('Error generating recommendations:', error);
-      message.error('分析失敗，請稍後再試');
+      if (error.code === 'ECONNABORTED') {
+        message.error('請求超時，請檢查網路連接或稍後再試');
+      } else {
+        message.error('分析失敗，請稍後再試');
+      }
     } finally {
       setLoading(false);
     }

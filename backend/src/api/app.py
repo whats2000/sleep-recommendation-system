@@ -212,7 +212,7 @@ def create_app():
     
     # Cleanup on app teardown
     @app.teardown_appcontext
-    def cleanup_services():
+    def cleanup_services(exception=None):
         """Clean up services when app context tears down."""
         try:
             recommendation_service.cleanup()

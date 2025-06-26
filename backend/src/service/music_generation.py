@@ -86,22 +86,29 @@ class MusicGenerationService:
                 return_tensors="pt",
             ).to(self.device)
 
-            # 2. cap max_length as discussed earlier
+            # 2. cap max_length to prevent errors - much more conservative
             sample_rate = 32_000
-            max_model_tokens = 1_280  # safety cap
+            max_model_tokens = 512  # Very conservative safety cap to prevent errors
+            max_duration = 15  # Limit to 15 seconds maximum
+
+            # Use the smaller of requested duration or max duration
+            actual_duration = min(duration, max_duration)
             tokens_to_generate = min(
-                int(duration * sample_rate / 320),
+                int(actual_duration * sample_rate / 320),
                 max_model_tokens,
             )
 
-            # 3. generate
+            print(f"Audio generation: duration={actual_duration}s, tokens={tokens_to_generate}")
+
+            # 3. generate with conservative parameters
+            print(f"Generating audio with prompt: '{prompt}', tokens: {tokens_to_generate}")
             with torch.no_grad():
                 audio_values = self.model.generate(
                     **inputs,
-                    max_length=tokens_to_generate,
+                    max_new_tokens=tokens_to_generate,
                     guidance_scale=guidance_scale,
                     do_sample=True,
-                    temperature=1.0,
+                    temperature=0.8,  # Slightly lower temperature for more stable generation
                 )
 
             # Check if generation was successful

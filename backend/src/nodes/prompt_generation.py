@@ -74,7 +74,7 @@ def prompt_generation_agent(state: RecommendationState) -> Dict[str, Any]:
             analysis_text = f"""
             MusicGen Prompt: {genre} {instruments_str}, {tempo}, {mood}, soft, sleep-inducing
             Components: genre={genre}, tempo={tempo}, mood={mood}, instruments={','.join(instruments)}
-            Parameters: duration=30, sample_rate=32000, guidance_scale=3.0
+            Parameters: duration=15, sample_rate=32000, guidance_scale=3.0
             """
         
         # Parse the response
@@ -82,7 +82,7 @@ def prompt_generation_agent(state: RecommendationState) -> Dict[str, Any]:
         musicgen_prompt = ""
         prompt_components = {}
         generation_parameters = {
-            "duration": 30,
+            "duration": 15,  # Shorter duration to prevent generation errors
             "sample_rate": 32000,
             "guidance_scale": 3.0
         }
