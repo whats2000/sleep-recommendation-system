@@ -41,7 +41,7 @@ def run_pipeline_test():
         
         # Test pipeline initialization
         print("2. Testing pipeline initialization...")
-        from pipeline import RecommendationPipeline
+        from src.pipeline import RecommendationPipeline
         pipeline = RecommendationPipeline(enable_checkpointing=False)
         test_instance.test_pipeline_initialization(pipeline)
         print("   ✓ Pipeline initialization successful")
@@ -74,7 +74,7 @@ def run_api_test():
     
     try:
         from tests.test_api import TestAPI
-        from api import create_app
+        from src.api import create_app
         import json
         
         # Create test app
@@ -139,7 +139,7 @@ def run_integration_test():
     print("=" * 50)
     
     try:
-        from service import RecommendationService
+        from src.service import RecommendationService
         from datetime import datetime
         
         print("1. Initializing recommendation service...")

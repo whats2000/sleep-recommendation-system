@@ -43,35 +43,35 @@ class RecommendationPipeline:
         # Create the state graph
         graph_builder = StateGraph(RecommendationState)
         
-        # Add all agent nodes
-        graph_builder.add_node("state_analysis", state_analysis_agent)
-        graph_builder.add_node("emotion_recognition", emotion_recognition_agent)
-        graph_builder.add_node("preference_analysis", preference_analysis_agent)
-        graph_builder.add_node("requirement_integration", requirement_integration_agent)
-        graph_builder.add_node("prompt_generation", prompt_generation_agent)
-        
+        # Add all agent nodes (using different names to avoid state key conflicts)
+        graph_builder.add_node("analyze_state", state_analysis_agent)
+        graph_builder.add_node("recognize_emotion", emotion_recognition_agent)
+        graph_builder.add_node("analyze_preferences", preference_analysis_agent)
+        graph_builder.add_node("integrate_requirements", requirement_integration_agent)
+        graph_builder.add_node("generate_prompt", prompt_generation_agent)
+
         # Set entry point to state analysis
-        graph_builder.add_edge(START, "state_analysis")
-        
+        graph_builder.add_edge(START, "analyze_state")
+
         # Add conditional edges for parallel processing of the first three agents
         graph_builder.add_conditional_edges(
-            "state_analysis",
+            "analyze_state",
             self._route_after_state_analysis,
             {
-                "emotion_recognition": "emotion_recognition",
-                "preference_analysis": "preference_analysis"
+                "recognize_emotion": "recognize_emotion",
+                "analyze_preferences": "analyze_preferences"
             }
         )
-        
+
         # Both emotion and preference analysis lead to integration
-        graph_builder.add_edge("emotion_recognition", "requirement_integration")
-        graph_builder.add_edge("preference_analysis", "requirement_integration")
-        
+        graph_builder.add_edge("recognize_emotion", "integrate_requirements")
+        graph_builder.add_edge("analyze_preferences", "integrate_requirements")
+
         # Integration leads to prompt generation
-        graph_builder.add_edge("requirement_integration", "prompt_generation")
-        
+        graph_builder.add_edge("integrate_requirements", "generate_prompt")
+
         # Prompt generation leads to end
-        graph_builder.add_edge("prompt_generation", END)
+        graph_builder.add_edge("generate_prompt", END)
         
         # Compile the graph
         if self.enable_checkpointing and self.memory:
@@ -87,10 +87,10 @@ class RecommendationPipeline:
         """
         # Check if state analysis completed successfully
         if state.get("processing_status") == "state_analysis_complete":
-            return "emotion_recognition"
+            return "recognize_emotion"
         else:
             # If state analysis failed, we could handle error routing here
-            return "emotion_recognition"  # Continue anyway for robustness
+            return "recognize_emotion"  # Continue anyway for robustness
     
     def process_form_data(self, form_data_dict: Dict[str, Any]) -> Dict[str, Any]:
         """
