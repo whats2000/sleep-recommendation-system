@@ -40,12 +40,12 @@ Symphony AI combines advanced AI technologies to provide personalized sleep musi
 ### 🎧 Advanced Audio Features
 - Web Audio API integration
 - High-quality music playback
-- Play, pause, replay, and volume controls
+- Play and replay
 - Progress tracking and time display
 
 ### 🧪 A/B Testing Framework
 - Blind music comparison testing
-- Detailed interaction logging
+- Identify by email
 - Statistical analysis capabilities
 - User preference data collection
 
